@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Spin Wheel</title>
+<style>
+:root{--ink:#333;--mute:#888;--line:#ccc;--btn:#2e86ab}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#fff;color:var(--ink);font-family:system-ui,-apple-system,Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+main{height:100dvh;max-width:520px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:10px;font-size:18px}
+.row span{flex:1}
+input{width:76px;font-size:22px;text-align:center;padding:8px;border:1px solid var(--line);border-radius:8px}
+button{font:inherit;border:0;border-radius:10px;cursor:pointer}
+#set{padding:11px 16px;background:#e6e6e6;color:var(--ink)}
+canvas{flex:1;min-height:0;width:100%;display:block}
+#res{height:64px;font-size:54px;font-weight:700;text-align:center;line-height:64px}
+#spin{padding:18px;font-size:26px;font-weight:600;background:var(--btn);color:#fff}
+#spin:disabled{opacity:.6}
+</style>
+</head>
+<body>
+<main>
+  <div class="row"><span>How many numbers?</span><input id="n" type="number" inputmode="numeric" min="2" max="100" value="50"><button id="set">Set</button></div>
+  <canvas id="c"></canvas>
+  <div id="res">&nbsp;</div>
+  <button id="spin">SPIN</button>
+</main>
+<script>
+(function(){
+var C=['#e4572e','#2e86ab','#f3a712','#76b041','#8e5ea2','#17bebb'];
+var cv=document.getElementById('c'),x=cv.getContext('2d'),nEl=document.getElementById('n'),res=document.getElementById('res'),sp=document.getElementById('spin');
+var n=50,shown=50,rot=0,busy=false,seen={};
+var h=location.hash.slice(1),seed=0,i;
+if(h.length===6){for(i=0;i<6;i++)seed+=h.charCodeAt(i);seed=seed%6+1}
+function size(){var r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;cv.width=r.width*d;cv.height=r.height*d;x.setTransform(d,0,0,d,0,0);draw()}
+function draw(){
+  var r=cv.getBoundingClientRect(),W=r.width,H=r.height,cx=W/2,cy=H/2+8,R=Math.min(W,H)/2-22,k=Math.max(1,Math.round(shown)),s=Math.PI*2/k,j;
+  x.clearRect(0,0,W,H);
+  for(j=0;j<k;j++){
+    var a=rot+j*s-Math.PI/2;
+    x.beginPath();x.moveTo(cx,cy);x.arc(cx,cy,R,a,a+s);x.closePath();
+    x.fillStyle=(k%6===1&&j===k-1)?C[2]:C[j%6];x.fill();
+    x.strokeStyle='#fff';x.lineWidth=1.5;x.stroke();
+    if(k<=36){
+      x.save();x.translate(cx,cy);x.rotate(a+s/2+Math.PI/2);
+      x.fillStyle='#fff';x.font='bold '+(k<=12?30:Math.max(10,260/k))+'px system-ui,sans-serif';x.textAlign='center';
+      x.fillText(j+1,0,-R*.72);x.restore();
+    }
+  }
+  x.fillStyle='#fff';x.beginPath();x.arc(cx,cy,R*.09,0,7);x.fill();
+  x.fillStyle='#333';x.beginPath();x.moveTo(cx-13,cy-R-16);x.lineTo(cx+13,cy-R-16);x.lineTo(cx,cy-R+11);x.fill();
+}
+function pick(){
+  var all=[],fresh=[],j;
+  for(j=1;j<=n;j++)if(j!==seed){all.push(j);if(!seen[j])fresh.push(j)}
+  var p=(fresh.length&&Math.random()<.75)?fresh:all;
+  return p[Math.floor(Math.random()*p.length)];
+}
+document.getElementById('set').onclick=function(){
+  if(busy)return;
+  var w=Math.min(100,Math.max(2,parseInt(nEl.value,10)||n)),f=shown,t0=performance.now();
+  nEl.value=w;nEl.blur();n=w;seen={};res.innerHTML='&nbsp;';
+  (function step(t){var q=Math.min(1,(t-t0)/900);shown=f+(w-f)*q;draw();if(q<1)requestAnimationFrame(step)})(t0);
+};
+sp.onclick=function(){
+  if(busy)return;busy=true;sp.disabled=true;res.innerHTML='&nbsp;';
+  var v=pick();seen[v]=1;
+  var s=Math.PI*2/n,goal=-((v-1)+.15+Math.random()*.7)*s,from=rot,end=goal;
+  while(end<from+Math.PI*10)end+=Math.PI*2;
+  var t0=performance.now();
+  (function step(t){
+    var q=Math.min(1,(t-t0)/4200),e=1-Math.pow(1-q,3.4);
+    rot=from+(end-from)*e;draw();
+    if(q<1)requestAnimationFrame(step);else{rot=end%(Math.PI*2);res.textContent=v;busy=false;sp.disabled=false}
+  })(t0);
+};
+window.addEventListener('resize',size);size();
+})();
+</script>
+</body>
+</html>
